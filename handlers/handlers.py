@@ -1,59 +1,43 @@
+from random import choice
+
 from aiogram import Router, F
 from aiogram.types import Message
 from aiogram.filters import CommandStart
 from lexicon import LEXICON_RU
 from keyboards import *
-from random import choice
-from database import get_user, reset_user
+from database import get_score
+from services import get_result
 
 router = Router()
-
-def get_result(message: Message) -> tuple:
-    items = ['Камень ✊🏼', 'Ножницы ✌🏼', 'Бумага ✋🏼']
-    results = ['draw', 'lose', 'win']
-    user_item = message.text
-    bot_item = choice(items)
-    res_ind = items.index(user_item) - items.index(bot_item)
-    return user_item[-2:], bot_item[-2:], results[res_ind]
 
 
 @router.message(CommandStart())
 async def process_command_start(message: Message):
-    get_user(message)
+    get_score(message)
     await message.answer(
-        text=LEXICON_RU['start'],
+        text=LEXICON_RU['start_txt'],
         reply_markup=keyboard_start
     )
 
 
-@router.message(F.text == 'Выйти в меню')
-async def process_menu(message: Message):
-    await message.answer(
-        text=LEXICON_RU['menu'],
-        reply_markup=keyboard_start
-    )
-
-
-@router.message(F.text == 'Правила игры')
+@router.message(F.text == LEXICON_RU['help_btn'])
 async def process_help(message: Message):
     await message.answer(
-        text=LEXICON_RU['help'],
+        text=LEXICON_RU['help_txt'],
         reply_markup=keyboard_start
     )
 
 
-@router.message(F.text == 'Счёт')
-async def process_score(message: Message):
-    user = get_user(message)
+@router.message(F.text == LEXICON_RU['menu_btn'])
+async def process_menu(message: Message):
     await message.answer(
-        text=f'СЧЕТ\n'
-             f'{user["name"]}: {user["win"]}\n'
-             f'БОТ: {user["lose"]}\n'
-             f'Ничья: {user["draw"]}'
+        text=LEXICON_RU['menu_txt'],
+        reply_markup=keyboard_start
     )
 
 
-@router.message(F.text.in_(['Начать игру', 'Сыграть еще']))
+@router.message(F.text.in_([LEXICON_RU['start_game'],
+                           LEXICON_RU['cont_game']]))
 async def process_game(message: Message):
     await message.answer(
         text=LEXICON_RU['game'],
@@ -61,22 +45,32 @@ async def process_game(message: Message):
     )
 
 
-@router.message(F.text.in_(['Камень ✊🏼', 'Ножницы ✌🏼', 'Бумага ✋🏼']))
-async def process_choice(message: Message):
-    user = get_user(message)
-    result = get_result(message)
-    user[result[-1]] += 1
+@router.message(F.text == LEXICON_RU['score_btn'])
+async def process_score(message: Message):
     await message.answer(
-        text=f"{user['name']} -> {result[0]} - {result[1]} <- БОТ\n\n{LEXICON_RU[result[-1]]}",
-        reply_markup=keyboard_continue
+        text=get_score(message),
+        reply_markup=keyboard_score
     )
 
 
-@router.message(F.text == 'Сброс/сначала')
+@router.message(F.text == LEXICON_RU['reset_btn'])
 async def process_reset(message: Message):
-    reset_user(message)
     await message.answer(
-        text=LEXICON_RU['reset']
+        text=get_score(message, reset=True)
+    )
+
+
+@router.message(F.text.in_([LEXICON_RU['stone'],
+                           LEXICON_RU['scissors'],
+                           LEXICON_RU['paper']]))
+async def process_choice(message: Message):
+    bot_choice = choice(['stone', 'scissors', 'paper'])
+    await message.answer(LEXICON_RU[bot_choice])
+    result: str = get_result(message.text, bot_choice)
+    get_score(message, result=result)
+    await message.answer(
+        text=LEXICON_RU[result],
+        reply_markup=keyboard_continue
     )
 
 

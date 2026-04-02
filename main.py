@@ -4,33 +4,38 @@ import logging
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
-from config_data import Config, load_config
-import handlers
+
+from config.config import Config, load_config
+from handlers.other import other_router
+from handlers.user import user_router
+
 
 logger = logging.getLogger(__name__)
 
 
 async def main():
 
+    config: Config = load_config()
+
     logging.basicConfig(
-        level=logging.INFO,
-        format='%(filename)s:%(lineno)d #%(levelname)-8s '
-               '[%(asctime)s] - %(name)s - %(message)s')
+        level=logging.getLevelName(level=config.log.level),
+        format=config.log.format
+    )
 
     logger.info('Starting bot')
 
-    config: Config = load_config()
-
     bot = Bot(
-        token=config.tg_bot.token,
+        token=config.bot.token,
         default=DefaultBotProperties(parse_mode=ParseMode.HTML)
     )
     dp = Dispatcher()
 
-    dp.include_router(handlers.router)
+    dp.include_router(user_router)
+    dp.include_router(other_router)
 
     await bot.delete_webhook(drop_pending_updates=True)
     await dp.start_polling(bot)
 
 
-asyncio.run(main())
+if __name__ == '__main__':
+    asyncio.run(main())
